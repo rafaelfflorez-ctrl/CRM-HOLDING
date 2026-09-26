@@ -1,0 +1,8 @@
+{
+  "name": "Remix MATRIZ MAKER HOLDING",
+  "description": "Dashboard financiero interactivo y reportes contables en tiempo real para Loggro. Cuenta con gestión de roles, alertas automatizadas y exportación de reportes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,0 +1,65 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-brand-900: #0f172a;
+  --color-brand-800: #1e293b;
+  --color-brand-700: #334155;
+  --color-brand-600: #475569;
+  --color-brand-primary: #0284c7; /* Sky blue */
+  --color-brand-accent: #f97316; /* Brand Orange */
+}
+
+/* Base responsive */
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+body { overflow-x: hidden; -webkit-tap-highlight-color: transparent; }
+img, video, canvas, svg { max-width: 100%; height: auto; }
+table { display: block; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* Pulido tipográfico */
+h1, h2, h3 { text-wrap: balance; letter-spacing: -0.015em; }
+p { text-wrap: pretty; }
+
+/* TV - Full HD 1920px+ (viewing distance) */
+@media (min-width: 1920px) {
+  html { font-size: 18px; }
+  /* Slightly larger padding on TV for readability */
+  #main-app-shell { font-size: 1.05rem; }
+}
+
+/* 4K TVs 2560px+ */
+@media (min-width: 2560px) {
+  html { font-size: 20px; }
+}
+
+/* Touch devices - larger tap targets (tablet, phone) */
+@media (pointer: coarse) {
+  button, a[role="button"] { min-height: 44px; }
+}
+
+/* TV remote / keyboard navigation */
+*:focus-visible { outline: 2px solid #0284c7; outline-offset: 2px; border-radius: 4px; }
+
+/* Reduce motion for accessibility (TVs, prefers-reduced) */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
