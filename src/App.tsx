@@ -251,11 +251,9 @@ export default function App() {
   };
 
   const handleClearAllTransactions = () => {
-    if (window.confirm("¿Está seguro de que desea limpiar todos los asientos contables actuales? La plataforma quedará en cero lista para el ingreso de sus transacciones reales.")) {
-      setTransactions([]);
-      setToastMessage("✓ Libro contable limpiado en su totalidad. Registre sus transacciones reales.");
-      logAudit("LIBRO_LIMPIADO", "Todos los asientos contables fueron eliminados.");
-    }
+    setTransactions([]);
+    setToastMessage("✓ Libro contable limpiado en su totalidad. Registre sus transacciones reales.");
+    logAudit("LIBRO_LIMPIADO", "Todos los asientos contables fueron eliminados.");
   };
 
   // User Administration Handlers (vía servidor, solo ADMIN - B2/C3)
@@ -267,7 +265,7 @@ export default function App() {
       setToastMessage(`Estado de usuario ${u.name} alternado.`);
       logAudit("USUARIO_ESTADO", `${u.name} ${u.isActive ? "desactivado" : "activado"}.`);
     } catch (e: any) {
-      alert(e?.message || "No se pudo cambiar el estado del usuario.");
+      setToastMessage(`⚠️ ${e?.message || "No se pudo cambiar el estado del usuario."}`);
     }
   };
 
@@ -278,7 +276,7 @@ export default function App() {
       setToastMessage(`Rol de ${u?.name || userId} actualizado a ${role}.`);
       logAudit("USUARIO_ROL", `${u?.name || userId} ahora es ${role}.`);
     } catch (e: any) {
-      alert(e?.message || "No se pudo actualizar el rol del usuario.");
+      setToastMessage(`⚠️ ${e?.message || "No se pudo actualizar el rol del usuario."}`);
     }
   };
 

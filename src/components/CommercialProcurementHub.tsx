@@ -44,7 +44,8 @@ import {
   UploadCloud,
   Hash,
   Settings2,
-  RefreshCw
+  RefreshCw,
+  Copy
 } from "lucide-react";
 
 interface CommercialProcurementHubProps {
@@ -633,15 +634,6 @@ export default function CommercialProcurementHub({
 
         // MODO DEMO: sin GEMINI_API_KEY el servidor devuelve datos simulados.
         if (data.isDemo) {
-          const proceed = window.confirm(
-            "⚠️ MODO DEMO: la API de Gemini no está configurada en el servidor. Se generará una cotización con datos SIMULADOS para previsualizar el flujo, pero NO reflejará el contenido real del documento. ¿Desea incluirla?"
-          );
-          if (!proceed) {
-            setIsAnalyzing(false);
-            setAnalyzingFilePreview(null);
-            setAnalysisError("Extracción cancelada. Configure GEMINI_API_KEY en los secrets del proyecto para el procesamiento real del documento.");
-            return;
-          }
           extractedEstimate.notes = [extractedEstimate.notes, "⚠ SIMULACIÓN (sin GEMINI_API_KEY)"].filter(Boolean).join(" | ");
         }
 
@@ -750,15 +742,6 @@ export default function CommercialProcurementHub({
 
         // MODO DEMO: sin GEMINI_API_KEY el servidor devuelve datos simulados.
         if (data.isDemo) {
-          const proceed = window.confirm(
-            "⚠️ MODO DEMO: la API de Gemini no está configurada en el servidor. Se generará una orden de compra con datos SIMULADOS para previsualizar el flujo, pero NO reflejará el contenido real del documento. ¿Desea incluirla?"
-          );
-          if (!proceed) {
-            setIsAnalyzing(false);
-            setAnalyzingFilePreview(null);
-            setAnalysisError("Extracción cancelada. Configure GEMINI_API_KEY en los secrets del proyecto para el procesamiento real del documento.");
-            return;
-          }
           extractedPO.notes = [extractedPO.notes, "⚠ SIMULACIÓN (sin GEMINI_API_KEY)"].filter(Boolean).join(" | ");
         }
 
@@ -1321,7 +1304,56 @@ export default function CommercialProcurementHub({
       account,
       companyId
     });
-    alert(`✓ O.C. ${po.id} marcada como RECIBIDA y contabilizada en compras.`);
+    setHubToast(`✓ O.C. ${po.id} marcada como RECIBIDA y contabilizada en compras.`);
+  };
+
+  const [deleteConfirmEstimateId, setDeleteConfirmEstimateId] = useState<string | null>(null);
+  const [deleteConfirmPoId, setDeleteConfirmPoId] = useState<string | null>(null);
+  const [hubToast, setHubToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (hubToast) {
+      const timer = setTimeout(() => setHubToast(null), 3500);
+      return () => clearTimeout(timer);
+    }
+  }, [hubToast]);
+
+  const handleDeleteEstimate = (id: string) => {
+    setEstimates(prev => prev.filter(e => e.id !== id));
+    setDeleteConfirmEstimateId(null);
+    setHubToast(`✓ Cotización ${id} eliminada con éxito.`);
+  };
+
+  const handleDuplicateEstimate = (sourceCot: Estimate) => {
+    const newId = generateNextCOTId(companyId);
+    const duplicated: Estimate = {
+      ...JSON.parse(JSON.stringify(sourceCot)),
+      id: newId,
+      date: new Date().toISOString().split("T")[0],
+      status: "BORRADOR",
+      quoteReference: sourceCot.quoteReference ? `${sourceCot.quoteReference} (Copia)` : undefined,
+    };
+    setEstimates(prev => [duplicated, ...prev]);
+    setHubToast(`✓ Cotización ${sourceCot.id} duplicada con nuevo consecutivo ${newId}`);
+  };
+
+  const handleDeletePO = (id: string) => {
+    setPurchaseOrders(prev => prev.filter(p => p.id !== id));
+    setDeleteConfirmPoId(null);
+    setHubToast(`✓ Orden de compra ${id} eliminada con éxito.`);
+  };
+
+  const handleDuplicatePO = (sourcePo: PurchaseOrder) => {
+    const newId = generateNextODCId(companyId);
+    const duplicated: PurchaseOrder = {
+      ...JSON.parse(JSON.stringify(sourcePo)),
+      id: newId,
+      date: new Date().toISOString().split("T")[0],
+      status: "EMITIDO",
+      quoteReference: sourcePo.quoteReference ? `${sourcePo.quoteReference} (Copia)` : undefined,
+    };
+    setPurchaseOrders(prev => [duplicated, ...prev]);
+    setHubToast(`✓ Orden de compra ${sourcePo.id} duplicada con nuevo consecutivo ${newId}`);
   };
 
   return (
@@ -1904,6 +1936,19 @@ export default function CommercialProcurementHub({
               </form>
             )}
 
+            {/* Notification Toast */}
+            {hubToast && (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-xl text-xs flex items-center justify-between gap-2 shadow-xs animate-fadeIn">
+                <div className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0 stroke-[3]" />
+                  <span className="font-bold">{hubToast}</span>
+                </div>
+                <button type="button" onClick={() => setHubToast(null)} className="text-emerald-700 hover:text-emerald-900 cursor-pointer">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
             {/* List of Quotes */}
             <div className="overflow-x-auto border rounded-xl">
               <table className="w-full text-xs text-left text-slate-600">
@@ -1919,7 +1964,7 @@ export default function CommercialProcurementHub({
                     <th className="p-3 text-right font-bold">IVA (19%)</th>
                     <th className="p-3 text-right font-bold text-slate-900">Total Neto</th>
                     <th className="p-3 text-center">Estatus</th>
-                    <th className="p-3 text-center">Acciones</th>
+                    <th className="p-3 text-center w-48 min-w-[185px] text-[10px] font-black uppercase text-slate-500">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y bg-white">
@@ -2286,92 +2331,146 @@ export default function CommercialProcurementHub({
                               {cot.status}
                             </span>
                           </td>
-                          <td className="p-3 text-center">
-                            <div className="flex items-center justify-center gap-1.5">
-                              <button
-                                onClick={() => handleGenerateQuotePDF(cot)}
-                                className="p-1 hover:bg-rose-50 rounded text-rose-600 transition-all cursor-pointer"
-                                title="Descargar PDF Formal de Cotización"
-                              >
-                                <FileCheck className="w-4 h-4" />
-                              </button>
-                              
-                              {/* Edit Button */}
-                              <button
-                                onClick={() => {
-                                  const cloned = JSON.parse(JSON.stringify(cot));
-                                  let totalCost = 0;
-                                  let subtotal = 0;
-                                  let totalProfit = 0;
+                          <td className="p-2 text-center align-middle">
+                            {deleteConfirmEstimateId === cot.id ? (
+                              <div className="flex flex-col gap-1 bg-red-50 border border-red-300 p-2 rounded-xl shadow-xs text-center max-w-[190px] mx-auto">
+                                <span className="text-[11px] font-black text-red-800">¿Eliminar {cot.id}?</span>
+                                <div className="flex items-center justify-center gap-1.5 mt-0.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteEstimate(cot.id)}
+                                    className="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white text-[10px] font-black rounded-md transition-all cursor-pointer"
+                                  >
+                                    Sí, Borrar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setDeleteConfirmEstimateId(null)}
+                                    className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 text-[10px] font-bold rounded-md transition-all cursor-pointer"
+                                  >
+                                    Cancelar
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col gap-1.5 w-full max-w-[190px] mx-auto">
+                                <div className="grid grid-cols-2 gap-1.5">
+                                  {/* Botón Descargar PDF */}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleGenerateQuotePDF(cot)}
+                                    className="inline-flex items-center justify-center gap-1 py-1.5 px-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-[11px] font-bold transition-all shadow-3xs cursor-pointer active:scale-95"
+                                    title="Descargar PDF Formal"
+                                  >
+                                    <FileCheck className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                                    <span>PDF</span>
+                                  </button>
+                                  
+                                  {/* Botón Editar Cotización */}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const cloned = JSON.parse(JSON.stringify(cot));
+                                      let totalCost = 0;
+                                      let subtotal = 0;
+                                      let totalProfit = 0;
 
-                                  cloned.items = (cloned.items || []).map((it: any) => {
-                                    const qty = it.quantity || 1;
-                                    const cost = it.unitCost !== undefined ? it.unitCost : it.unitPrice;
-                                    const margin = it.profitMarginPercent !== undefined ? it.profitMarginPercent : (cost > 0 && it.unitPrice > cost ? Number((((it.unitPrice - cost) / cost) * 100).toFixed(1)) : 0);
-                                    const price = it.unitPrice !== undefined ? it.unitPrice : Math.round(cost * (1 + margin / 100));
-                                    const lineCost = qty * cost;
-                                    const lineTotal = qty * price;
-                                    const lineProfit = qty * (price - cost);
+                                      cloned.items = (cloned.items || []).map((it: any) => {
+                                        const qty = it.quantity || 1;
+                                        const cost = it.unitCost !== undefined ? it.unitCost : it.unitPrice;
+                                        const margin = it.profitMarginPercent !== undefined ? it.profitMarginPercent : (cost > 0 && it.unitPrice > cost ? Number((((it.unitPrice - cost) / cost) * 100).toFixed(1)) : 0);
+                                        const price = it.unitPrice !== undefined ? it.unitPrice : Math.round(cost * (1 + margin / 100));
+                                        const lineCost = qty * cost;
+                                        const lineTotal = qty * price;
+                                        const lineProfit = qty * (price - cost);
 
-                                    totalCost += lineCost;
-                                    subtotal += lineTotal;
-                                    totalProfit += lineProfit;
+                                        totalCost += lineCost;
+                                        subtotal += lineTotal;
+                                        totalProfit += lineProfit;
 
-                                    return {
-                                      ...it,
-                                      quantity: qty,
-                                      unitCost: cost,
-                                      profitMarginPercent: margin,
-                                      profitAmount: price - cost,
-                                      unitPrice: price,
-                                      total: lineTotal
-                                    };
-                                  });
+                                        return {
+                                          ...it,
+                                          quantity: qty,
+                                          unitCost: cost,
+                                          profitMarginPercent: margin,
+                                          profitAmount: price - cost,
+                                          unitPrice: price,
+                                          total: lineTotal
+                                        };
+                                      });
 
-                                  const taxAmount = Math.round(subtotal * 0.19);
-                                  const total = subtotal + taxAmount;
-                                  const profitMarginPercent = totalCost > 0 ? Number(((totalProfit / totalCost) * 100).toFixed(1)) : 0;
+                                      const taxAmount = Math.round(subtotal * 0.19);
+                                      const total = subtotal + taxAmount;
+                                      const profitMarginPercent = totalCost > 0 ? Number(((totalProfit / totalCost) * 100).toFixed(1)) : 0;
 
-                                  cloned.totalCost = totalCost;
-                                  cloned.totalProfit = totalProfit;
-                                  cloned.profitMarginPercent = profitMarginPercent;
-                                  cloned.subtotal = subtotal;
-                                  cloned.taxAmount = taxAmount;
-                                  cloned.total = total;
+                                      cloned.totalCost = totalCost;
+                                      cloned.totalProfit = totalProfit;
+                                      cloned.profitMarginPercent = profitMarginPercent;
+                                      cloned.subtotal = subtotal;
+                                      cloned.taxAmount = taxAmount;
+                                      cloned.total = total;
 
-                                  setEditingEstimateId(cot.id);
-                                  setEditingEstimateData(cloned);
-                                }}
-                                className="p-1 hover:bg-indigo-50 rounded text-indigo-600 transition-all cursor-pointer"
-                                title="Editar Cotización & Márgenes en Tiempo Real"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </button>
+                                      setEditingEstimateId(cot.id);
+                                      setEditingEstimateData(cloned);
+                                    }}
+                                    className="inline-flex items-center justify-center gap-1 py-1.5 px-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-[11px] font-bold transition-all shadow-3xs cursor-pointer active:scale-95"
+                                    title="Editar Cotización"
+                                  >
+                                    <Edit className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                                    <span>Editar</span>
+                                  </button>
 
-                              {cot.status !== "ACEPTADO" && (
-                                <button
-                                  onClick={() => {
-                                    setEstimates(prev => prev.map(e => e.id === cot.id ? { ...e, status: "ACEPTADO" as any } : e));
-                                    // Add financial transaction
-                                    onAddTransaction({
-                                      type: "VENTA",
-                                      amount: cot.total,
-                                      customerSupplier: cot.customer,
-                                      description: `Facturación de la cotización aprobada ${cot.id} para ${cot.customer}`,
-                                      category: "Venta Comercial",
-                                      status: "CONTABILIZADO",
-                                      account: "413505 - Ventas de Mercancías",
-                                      companyId
-                                    });
-                                    alert(`✓ Cotización aprobada. Se ha registrado un ingreso contable (VENTA) por ${formatCOP(cot.total)}.`);
-                                  }}
-                                  className="px-2 py-0.5 bg-emerald-500 hover:bg-emerald-600 text-white text-[9px] font-extrabold rounded"
-                                  title="Aprobar y Registrar Ingreso en Contabilidad"
-                                >
-                                  Aprobar
-                                </button>
-                              )}
-                            </div>
+                                  {/* Botón Duplicar (al lado de Borrar) */}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDuplicateEstimate(cot)}
+                                    className="inline-flex items-center justify-center gap-1 py-1.5 px-2 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-lg text-[11px] font-bold transition-all shadow-3xs cursor-pointer active:scale-95"
+                                    title="Duplicar cotización con nuevo consecutivo"
+                                  >
+                                    <Copy className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                                    <span>Duplicar</span>
+                                  </button>
+
+                                  {/* Botón Borrar */}
+                                  <button
+                                    type="button"
+                                    onClick={() => setDeleteConfirmEstimateId(cot.id)}
+                                    className="inline-flex items-center justify-center gap-1 py-1.5 px-2 bg-red-50 hover:bg-red-600 hover:text-white text-red-700 border border-red-200 rounded-lg text-[11px] font-bold transition-all shadow-3xs cursor-pointer active:scale-95 group"
+                                    title="Eliminar esta cotización"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5 text-red-600 group-hover:text-white shrink-0 transition-colors" />
+                                    <span>Borrar</span>
+                                  </button>
+                                </div>
+
+                                {/* Botón Aprobar si no ha sido aceptada */}
+                                {cot.status !== "ACEPTADO" && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEstimates(prev => prev.map(e => e.id === cot.id ? { ...e, status: "ACEPTADO" as any } : e));
+                                      // Add financial transaction
+                                      onAddTransaction({
+                                        type: "VENTA",
+                                        amount: cot.total,
+                                        customerSupplier: cot.customer,
+                                        description: `Facturación de la cotización aprobada ${cot.id} para ${cot.customer}`,
+                                        category: "Venta Comercial",
+                                        status: "CONTABILIZADO",
+                                        account: "413505 - Ventas de Mercancías",
+                                        companyId
+                                      });
+                                      setHubToast(`✓ Cotización ${cot.id} aprobada y registrada en contabilidad por ${formatCOP(cot.total)}.`);
+                                    }}
+                                    className="w-full inline-flex items-center justify-center gap-1 py-1 px-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-black transition-all shadow-xs cursor-pointer active:scale-95"
+                                    title="Aprobar y Registrar Ingreso en Contabilidad"
+                                  >
+                                    <Check className="w-3.5 h-3.5 text-white shrink-0 stroke-[3]" />
+                                    <span>Aprobar</span>
+                                  </button>
+                                )}
+                              </div>
+                            )}
                           </td>
                         </tr>
                       );
@@ -2655,6 +2754,19 @@ export default function CommercialProcurementHub({
               </form>
             )}
 
+            {/* Notification Toast */}
+            {hubToast && (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-xl text-xs flex items-center justify-between gap-2 shadow-xs animate-fadeIn">
+                <div className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0 stroke-[3]" />
+                  <span className="font-bold">{hubToast}</span>
+                </div>
+                <button type="button" onClick={() => setHubToast(null)} className="text-emerald-700 hover:text-emerald-900 cursor-pointer">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
             {/* List of POs */}
             <div className="overflow-x-auto border rounded-xl">
               <table className="w-full text-xs text-left text-slate-600">
@@ -2669,7 +2781,7 @@ export default function CommercialProcurementHub({
                     <th className="p-3 text-right text-slate-900">Total O.C.</th>
                     <th className="p-3">Llegada Estimada / Transp</th>
                     <th className="p-3 text-center">Estatus</th>
-                    <th className="p-3 text-center">Acciones</th>
+                    <th className="p-3 text-center w-48 min-w-[185px] text-[10px] font-black uppercase text-slate-500">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y bg-white">
@@ -2944,35 +3056,85 @@ export default function CommercialProcurementHub({
                             {po.status !== "RECIBIDO" && po.status !== "CANCELADO" && (
                               <button
                                 onClick={() => handleMarkPOReceived(po)}
-                                className="mt-1 block mx-auto text-[9px] font-bold text-emerald-700 border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-md transition-all cursor-pointer"
+                                className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-extrabold text-emerald-800 border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg transition-all cursor-pointer shadow-3xs"
                                 title="Marcar como recibida y contabilizar la compra"
                               >
-                                Marcar Recibida
+                                <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[3]" />
+                                <span>Marcar Recibida</span>
                               </button>
                             )}
                           </td>
-                          <td className="p-3 text-center">
-                            <div className="flex items-center justify-center gap-1.5">
-                              <button
-                                onClick={() => handleGeneratePOPDF(po)}
-                                className="p-1 hover:bg-rose-50 rounded text-rose-600 transition-all cursor-pointer"
-                                title="Descargar Orden de Compra PDF (Formato Oficial)"
-                              >
-                                <FileCheck className="w-4 h-4" />
-                              </button>
+                          <td className="p-2 text-center align-middle">
+                            {deleteConfirmPoId === po.id ? (
+                              <div className="flex flex-col gap-1 bg-red-50 border border-red-300 p-2 rounded-xl shadow-xs text-center max-w-[190px] mx-auto">
+                                <span className="text-[11px] font-black text-red-800">¿Eliminar {po.id}?</span>
+                                <div className="flex items-center justify-center gap-1.5 mt-0.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeletePO(po.id)}
+                                    className="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white text-[10px] font-black rounded-md transition-all cursor-pointer"
+                                  >
+                                    Sí, Borrar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setDeleteConfirmPoId(null)}
+                                    className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 text-[10px] font-bold rounded-md transition-all cursor-pointer"
+                                  >
+                                    Cancelar
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="grid grid-cols-2 gap-1.5 w-full max-w-[190px] mx-auto">
+                                {/* Botón Descargar PDF */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleGeneratePOPDF(po)}
+                                  className="inline-flex items-center justify-center gap-1 py-1.5 px-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-[11px] font-bold transition-all shadow-3xs cursor-pointer active:scale-95"
+                                  title="Descargar Orden de Compra PDF"
+                                >
+                                  <FileCheck className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                                  <span>PDF</span>
+                                </button>
 
-                              {/* Edit Button */}
-                              <button
-                                onClick={() => {
-                                  setEditingPoId(po.id);
-                                  setEditingPoData(JSON.parse(JSON.stringify(po)));
-                                }}
-                                className="p-1 hover:bg-indigo-50 rounded text-indigo-600 transition-all cursor-pointer"
-                                title="Editar Orden de Compra en Tiempo Real"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </button>
-                            </div>
+                                {/* Botón Editar O.C. */}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingPoId(po.id);
+                                    setEditingPoData(JSON.parse(JSON.stringify(po)));
+                                  }}
+                                  className="inline-flex items-center justify-center gap-1 py-1.5 px-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-[11px] font-bold transition-all shadow-3xs cursor-pointer active:scale-95"
+                                  title="Editar Orden de Compra"
+                                >
+                                  <Edit className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                                  <span>Editar</span>
+                                </button>
+
+                                {/* Botón Duplicar (al lado de Borrar) */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleDuplicatePO(po)}
+                                  className="inline-flex items-center justify-center gap-1 py-1.5 px-2 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-lg text-[11px] font-bold transition-all shadow-3xs cursor-pointer active:scale-95"
+                                  title="Duplicar orden de compra"
+                                >
+                                  <Copy className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                                  <span>Duplicar</span>
+                                </button>
+
+                                {/* Botón Borrar */}
+                                <button
+                                  type="button"
+                                  onClick={() => setDeleteConfirmPoId(po.id)}
+                                  className="inline-flex items-center justify-center gap-1 py-1.5 px-2 bg-red-50 hover:bg-red-600 hover:text-white text-red-700 border border-red-200 rounded-lg text-[11px] font-bold transition-all shadow-3xs cursor-pointer active:scale-95 group"
+                                  title="Eliminar orden de compra"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5 text-red-600 group-hover:text-white shrink-0 transition-colors" />
+                                  <span>Borrar</span>
+                                </button>
+                              </div>
+                            )}
                           </td>
                         </tr>
                       );

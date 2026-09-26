@@ -802,11 +802,8 @@ export default function HelenamarRealEstatePanel({
                       </button>
                       <button
                         onClick={() => {
-                          const guest = prompt("Ingrese nombre del huésped de turismo:");
-                          const fee = parseFloat(prompt("Ingrese valor total de la reserva (COP):") || "0");
-                          if (guest && fee > 0) {
-                            handleUpdateOccupancy(prop.id, "ALQUILADO_CORTO", guest, fee);
-                          }
+                          const defaultFee = prop.rentIncomeAmount || 600000;
+                          handleUpdateOccupancy(prop.id, "ALQUILADO_CORTO", "Huésped Turístico", defaultFee);
                         }}
                         className={`px-2 py-1 rounded text-[10px] font-bold ${prop.occupancyStatus === 'ALQUILADO_CORTO' ? 'bg-indigo-600 text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'}`}
                       >
@@ -814,11 +811,8 @@ export default function HelenamarRealEstatePanel({
                       </button>
                       <button
                         onClick={() => {
-                          const tenant = prompt("Ingrese nombre del arrendatario:");
-                          const rent = parseFloat(prompt("Ingrese canon mensual de arrendamiento (COP):") || "0");
-                          if (tenant && rent > 0) {
-                            handleUpdateOccupancy(prop.id, "ALQUILADO_LARGO", tenant, rent);
-                          }
+                          const defaultRent = prop.rentIncomeAmount || 1800000;
+                          handleUpdateOccupancy(prop.id, "ALQUILADO_LARGO", "Arrendatario Titular", defaultRent);
                         }}
                         className={`px-2 py-1 rounded text-[10px] font-bold ${prop.occupancyStatus === 'ALQUILADO_LARGO' ? 'bg-teal-600 text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'}`}
                       >

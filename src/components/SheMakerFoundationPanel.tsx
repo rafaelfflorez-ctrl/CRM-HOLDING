@@ -300,12 +300,8 @@ export default function SheMakerFoundationPanel({
   };
 
   // Deduct/Add beneficiaries
-  const handleIncrementBeneficiaries = (progId: string) => {
-    const qty = prompt("¿Cuántas beneficiarias se graduaron o ingresaron hoy?:");
-    if (!qty) return;
-    const num = parseInt(qty, 10);
-    if (isNaN(num)) return;
-
+  const handleIncrementBeneficiaries = (progId: string, customNum: number = 1) => {
+    const num = customNum > 0 ? customNum : 1;
     setPrograms(prev => prev.map(p => p.id === progId ? {
       ...p,
       currentBeneficiaries: p.currentBeneficiaries + num,

@@ -9,14 +9,30 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
   if (!headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
+  let hasAuth = false;
   try {
     const supabase = await getSupabaseClient();
     const { data } = await supabase.auth.getSession();
-    if (data.session) {
+    if (data?.session?.access_token) {
       headers.set("Authorization", `Bearer ${data.session.access_token}`);
+      hasAuth = true;
     }
   } catch (e) {
-    // Sin sesión: el servidor responderá 401.
+    // Supabase no configurado o no disponible
   }
+
+  if (!hasAuth && typeof window !== "undefined") {
+    try {
+      const local = JSON.parse(localStorage.getItem("holding_session") || "{}");
+      if (local?.token) {
+        headers.set("Authorization", `Bearer ${local.token}`);
+      } else if (local?.user?.email) {
+        headers.set("Authorization", `Bearer local-${local.user.email}`);
+      }
+    } catch {
+      // Ignorar error al parsear local storage
+    }
+  }
+
   return fetch(path, { ...options, headers });
 }

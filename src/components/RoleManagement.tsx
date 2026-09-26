@@ -68,19 +68,34 @@ export default function RoleManagement({
     }
   };
 
-  // Cambio de contraseña del usuario autenticado (self-service).
-  const handleChangePassword = async () => {
-    const newPass = prompt("Nueva contraseña (mínimo 6 caracteres):");
-    if (!newPass) return;
-    if (newPass.length < 6) {
-      alert("La contraseña debe tener al menos 6 caracteres.");
+  const [isChangingPass, setIsChangingPass] = useState(false);
+  const [passInput, setPassInput] = useState("");
+  const [passError, setPassError] = useState<string | null>(null);
+  const [passSuccess, setPassSuccess] = useState<string | null>(null);
+  const [isSavingPass, setIsSavingPass] = useState(false);
+
+  // Cambio de contraseña del usuario autenticado (self-service con modal seguro).
+  const handleSavePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!passInput || passInput.length < 6) {
+      setPassError("La contraseña debe tener al menos 6 caracteres.");
       return;
     }
+    setIsSavingPass(true);
+    setPassError(null);
+    setPassSuccess(null);
     try {
-      await onChangePassword(newPass);
-      alert("✓ Contraseña actualizada correctamente.");
-    } catch (e: any) {
-      alert(e?.message || "No se pudo cambiar la contraseña.");
+      await onChangePassword(passInput);
+      setPassSuccess("✓ Contraseña actualizada correctamente.");
+      setPassInput("");
+      setTimeout(() => {
+        setIsChangingPass(false);
+        setPassSuccess(null);
+      }, 1800);
+    } catch (err: any) {
+      setPassError(err?.message || "No se pudo cambiar la contraseña.");
+    } finally {
+      setIsSavingPass(false);
     }
   };
 
@@ -353,13 +368,50 @@ export default function RoleManagement({
                   {/* Self password change */}
                   {isSelf && (
                     <button
-                      onClick={() => void handleChangePassword()}
-                      className="text-[10px] font-extrabold text-slate-600 border border-slate-200 hover:bg-slate-100 px-2.5 py-1 rounded-md transition-colors"
+                      type="button"
+                      onClick={() => {
+                        setIsChangingPass(!isChangingPass);
+                        setPassError(null);
+                        setPassSuccess(null);
+                      }}
+                      className="text-[10px] font-extrabold text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 px-2.5 py-1 rounded-md transition-colors cursor-pointer"
                     >
-                      Cambiar contraseña
+                      {isChangingPass ? "Cerrar" : "Cambiar contraseña"}
                     </button>
                   )}
                 </div>
+
+                {/* Inline Password Change Form */}
+                {isSelf && isChangingPass && (
+                  <form onSubmit={handleSavePassword} className="w-full mt-3 p-3 bg-slate-50 border border-indigo-200 rounded-xl flex flex-col gap-2">
+                    <span className="text-[11px] font-bold text-slate-800">
+                      Actualizar Contraseña de Acceso
+                    </span>
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                      <input
+                        type="password"
+                        placeholder="Nueva contraseña (mínimo 6 caracteres)"
+                        value={passInput}
+                        onChange={(e) => setPassInput(e.target.value)}
+                        className="flex-1 text-xs p-2 bg-white border border-slate-300 rounded-lg text-slate-800 outline-none focus:border-indigo-500"
+                        autoFocus
+                      />
+                      <button
+                        type="submit"
+                        disabled={isSavingPass}
+                        className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg transition-colors disabled:opacity-60 cursor-pointer"
+                      >
+                        {isSavingPass ? "Guardando..." : "Guardar Contraseña"}
+                      </button>
+                    </div>
+                    {passError && (
+                      <p className="text-[11px] text-rose-600 font-semibold">{passError}</p>
+                    )}
+                    {passSuccess && (
+                      <p className="text-[11px] text-emerald-600 font-bold">{passSuccess}</p>
+                    )}
+                  </form>
+                )}
               </div>
             );
           })}
